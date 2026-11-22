@@ -1,0 +1,58 @@
+name: Publish Resource Pack
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "resource-pack/**"
+      - ".github/workflows/**"
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: github-pages
+  cancel-in-progress: true
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Validate resource pack
+        run: |
+          test -d resource-pack/assets
+          test -f resource-pack/pack.mcmeta
+
+      - name: Build resource pack ZIP
+        working-directory: resource-pack
+        run: |
+          mkdir -p ../public
+          zip -r ../public/resourcepack.zip assets pack.mcmeta pack.png
+          sha1sum ../public/resourcepack.zip | awk '{print $1}' > ../public/resourcepack.sha1
+
+      - name: Create download page
+        run: |
+          echo '<a href="resourcepack.zip">Download Resource Pack</a>' > public/index.html
+
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: public
+
+      - name: Deploy GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
